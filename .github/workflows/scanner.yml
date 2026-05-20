@@ -50,4 +50,4 @@ jobs:
         # 將 GitHub Secrets 裡的代碼清單傳給變數 TICKERS
         TICKERS: ${{ secrets.TICKERS }}
       # 正式執行你的 Python 選股程式
-      run: python push_breakout.py
+      run: python push_breakout_actions.py
