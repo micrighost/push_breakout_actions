@@ -1,0 +1,53 @@
+# 定義這個自動化工作流（Workflow）的名稱，會顯示在 GitHub Actions 頁面上
+name: Daily Stock Scanner
+
+# 設定觸發這個工作流的時機（Events）
+on:
+  # 1. 使用排程（Schedule）定時自動觸發
+  schedule:
+    # 使用 Cron 運算式設定時間：分 時 日 月 星期
+    # 💡 關鍵：GitHub 伺服器一律使用 UTC 時間（世界協調時）
+    # 台灣時間 (UTC+8) 的 12:30，轉換為 UTC 時間就是 04:30
+    - cron: '30 4 * * *'
+
+  # 2. 允許手動觸發（會在 GitHub 網頁端顯示 "Run workflow" 按鈕，方便隨時測試）
+  workflow_dispatch:
+
+# 定義這台自動化電腦要執行的工作內容（Jobs）
+jobs:
+  # 建立一個叫做 run-scanner 的任務
+  run-scanner:
+    # 指定這台雲端虛擬機器的作業系統，這裡使用最新穩定版的 Ubuntu Linux
+    runs-on: ubuntu-latest
+
+    # 任務內包含的具體執行步驟（Steps）
+    steps:
+    # 步驟 1：下載並複製你 GitHub 倉庫裡的程式碼到這台虛擬機器中
+    - name: 複製專案程式碼
+      uses: actions/checkout@v4
+
+    # 步驟 2：在這台虛擬機器上安裝與設定 Python 環境
+    - name: 設定 Python 環境
+      uses: actions/setup-python@v5
+      with:
+        # 指定使用的 Python 版本
+        python-version: '3.10'
+        # 開啟 pip 快取功能，第二次以後執行時安裝套件會變快
+        cache: 'pip'
+
+    # 步驟 3：更新 pip 工具，並根據 requirements.txt 安裝所有第三方套件
+    - name: 安裝相依套件
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # 步驟 4：將 GitHub Secrets 的敏感資料注入環境變數，並正式執行選股程式
+    - name: 執行選股掃描器
+      # 將網頁端設定的 Secrets 密鑰，對接到作業系統環境變數（os.getenv 才能讀到）
+      env:
+        # 將 GitHub Secrets 裡的網址傳給變數 DISCORD_WEBHOOK_URL
+        DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        # 將 GitHub Secrets 裡的代碼清單傳給變數 TICKERS
+        TICKERS: ${{ secrets.TICKERS }}
+      # 正式執行你的 Python 選股程式
+      run: python push_breakout.py
